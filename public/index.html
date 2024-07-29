@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Server Prices</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+</head>
+<body>
+  <h1>Server Prices</h1>
+  <label for="timePeriod">Select Time Period:</label>
+  <select id="timePeriod">
+    <option value="1d">1 Day</option>
+    <option value="1w">1 Week</option>
+    <option value="1m">1 Month</option>
+  </select>
+  <canvas id="priceChart"></canvas>
+
+  <script>
+    let chartInstance = null;
+    const updateInterval = 10000; 
+
+    async function fetchData() {
+      const response = await fetch('/data');
+      const data = await response.json();
+      return data;
+    }
+
+    function filterData(data, period) {
+      const now = new Date();
+      let filteredData;
+
+      switch (period) {
+        case '1d':
+          filteredData = data.filter(d => (now - new Date(d.timestamp)) / (1000 * 60 * 60 * 24) <= 1);
+          break;
+        case '1w':
+          filteredData = data.filter(d => (now - new Date(d.timestamp)) / (1000 * 60 * 60 * 24) <= 7);
+          break;
+        case '1m':
+          filteredData = data.filter(d => (now - new Date(d.timestamp)) / (1000 * 60 * 60 * 24) <= 30);
+          break;
+        default:
+          filteredData = data;
+      }
+
+      const latestData = {};
+      filteredData.forEach(entry => {
+        Object.keys(entry.data).forEach(server => {
+          if (!latestData[server]) {
+            latestData[server] = [];
+          }
+          latestData[server].push({ timestamp: entry.timestamp, price: entry.data[server] });
+        });
+      });
+
+      return latestData;
+    }
+
+    function createChart(data) {
+      const ctx = document.getElementById('priceChart').getContext('2d');
+
+      const serverColors = {
+        "(EU) #Season of Discovery - Living Flame": 'rgba(255, 99, 132, 1)',
+        "(EU) #Season of Discovery - Lone Wolf": 'rgba(54, 162, 235, 1)',
+        "(EU) #Season of Discovery - Wild Growth": 'rgba(75, 192, 192, 1)'
+      };
+
+      const datasets = Object.keys(data).map(server => ({
+        label: server,
+        data: data[server].map(d => ({ x: new Date(d.timestamp), y: d.price })),
+        fill: false,
+        borderColor: serverColors[server] || 'rgba(0, 0, 0, 1)',
+        tension: 0.1
+      }));
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: datasets
+        },
+        options: {
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                unit: 'day'
+              },
+              title: {
+                display: true,
+                text: 'Date'
+              }
+            },
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Price (€)'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    async function updateChart() {
+      const period = document.getElementById('timePeriod').value;
+      const data = await fetchData();
+      const filteredData = filterData(data, period);
+      createChart(filteredData);
+    }
+
+    document.getElementById('timePeriod').addEventListener('change', updateChart);
+
+    updateChart();
+
+    setInterval(updateChart, updateInterval);
+  </script>
+</body>
+</html>
