@@ -15,7 +15,8 @@ async function scrapeData() {
   const servers = [
     "(EU) #Season of Discovery - Living Flame",
     "(EU) #Season of Discovery - Lone Wolf",
-    "(EU) #Season of Discovery - Wild Growth"
+    "(EU) #Season of Discovery - Wild Growth",
+    "(EU) #Season of Discovery - Crusader Strike"
   ];
 
   const lowestPrices = {};
